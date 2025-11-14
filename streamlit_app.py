@@ -44,6 +44,15 @@ CATEGORIES_WITH_CHARTS = [
     c for c in ALL_PROFILING_CATEGORIES if c != ORGANIZATION_COLUMN
 ]
 
+# Colonne per cui attivare filtri nella tabella finale
+FILTER_COLUMNS = [
+    "Occupazione",
+    "Tipologia di organizzazione presso cui lavori",
+    "Seniority",
+    "Area aziendale",
+    "Settore produttivo",
+]
+
 # Palette colori del brand
 BRAND_COLORS = ["#73b27d", "#f1ad72", "#d31048"]
 
@@ -73,10 +82,8 @@ def get_colors_for_bars(num_bars: int, chart_index: int, values=None):
         if v_max == v_min:
             alphas = [1.0 for _ in range(num_bars)]
         else:
-            # Normalizziamo tra 0 e 1
             norm = (vals - v_min) / (v_max - v_min)
-            # Alpha tra 0.3 e 1.0
-            alphas = 0.3 + 0.7 * norm
+            alphas = 0.3 + 0.7 * norm  # tra 0.3 e 1.0
 
     colors = [
         (base_rgba[0], base_rgba[1], base_rgba[2], float(a))
@@ -187,55 +194,46 @@ if uploaded_file is not None:
             )
 
         # ----------------------------
-        # Tabella completa con filtri
+        # Tabella completa (subito visibile, nessun filtro attivo)
         # ----------------------------
-        st.subheader("Tabella completa con filtri")
+        st.subheader("Tabella completa dei partecipanti (tutte le righe)")
+        st.dataframe(
+            df_uploaded,
+            use_container_width=True,
+        )
+
+        # ----------------------------
+        # Filtri solo su alcune colonne chiave
+        # ----------------------------
+        st.subheader("Filtra la tabella per alcune colonne chiave")
 
         df_filtered = df_uploaded.copy()
 
-        with st.expander("Imposta filtri per le colonne"):
-            for col in df_uploaded.columns:
+        with st.expander("Imposta filtri (opzionali)"):
+            for col in FILTER_COLUMNS:
+                if col not in df_uploaded.columns:
+                    continue
+
                 col_data = df_uploaded[col]
+                unique_vals = sorted(
+                    col_data.dropna().astype(str).unique().tolist()
+                )
+                if not unique_vals:
+                    continue
 
-                # Colonne numeriche: filtro per intervallo
-                if pd.api.types.is_numeric_dtype(col_data):
-                    min_val = col_data.min()
-                    max_val = col_data.max()
-                    if pd.isna(min_val) or pd.isna(max_val):
-                        continue
+                # Di default seleziono TUTTI i valori → nessun filtro attivo inizialmente
+                selected_vals = st.multiselect(
+                    f"Valori per '{col}'",
+                    options=unique_vals,
+                    default=unique_vals,
+                )
 
-                    range_values = st.slider(
-                        f"Intervallo per '{col}'",
-                        float(min_val),
-                        float(max_val),
-                        (float(min_val), float(max_val)),
-                    )
+                # Applico il filtro solo se l'utente deseleziona qualcosa
+                if selected_vals and len(selected_vals) < len(unique_vals):
                     df_filtered = df_filtered[
-                        df_filtered[col].between(
-                            range_values[0],
-                            range_values[1]
-                        )
+                        df_filtered[col].astype(str).isin(selected_vals)
                     ]
 
-                # Colonne testuali/categoriche: multiselect
-                else:
-                    unique_vals = sorted(
-                        col_data.dropna().astype(str).unique().tolist()
-                    )
-                    if not unique_vals:
-                        continue
-
-                    selected_vals = st.multiselect(
-                        f"Valori per '{col}'",
-                        options=unique_vals,
-                        default=unique_vals,
-                    )
-                    if selected_vals:
-                        df_filtered = df_filtered[
-                            df_filtered[col].astype(str).isin(selected_vals)
-                        ]
-
-        # Tabella completa (tutte le righe dopo i filtri)
         st.dataframe(
             df_filtered,
             use_container_width=True,
