@@ -5,14 +5,24 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from collections import Counter
 from fpdf import FPDF
-from PIL import Image
+from PIL import Image  # <--- IMPORT PER IL LOGO
 
-# Banner brand Food Hub
+PAGE_TITLE = (
+    "Dashboard personale - Partecipanti alla mia sessione "
+    "del Festival dell'Innovazione Agroalimentare"
+)
+
+st.set_page_config(
+    page_title=PAGE_TITLE,
+    layout="wide"
+)
+
+# ---------- BANNER CON LOGO E TITOLO ----------
 col_logo, col_title = st.columns([1, 5])
 
 with col_logo:
     st.image(
-        "assets/logo_foodhub.png",
+        "assets/logo_foodhub.png",   # <--- esattamente così
         width=120
     )
 
@@ -29,14 +39,7 @@ with col_title:
         unsafe_allow_html=True
     )
 
-# ----------------------------
-# Configurazione pagina
-# ----------------------------
-st.title(PAGE_TITLE)
-st.write(
-    "Carica un file Excel con i dati dei partecipanti per "
-    "visualizzare KPI, grafici, analisi dei ruoli e una tabella filtrabile."
-)
+st.write("")  # piccolo spazio
 
 # ----------------------------
 # Impostazioni analisi
