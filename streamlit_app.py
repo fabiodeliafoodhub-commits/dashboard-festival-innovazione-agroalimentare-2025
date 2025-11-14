@@ -32,16 +32,6 @@ with col_title:
 # ----------------------------
 # Configurazione pagina
 # ----------------------------
-PAGE_TITLE = (
-    "Dashboard personale - Partecipanti alla mia sessione "
-    "del Festival dell'Innovazione Agroalimentare"
-)
-
-st.set_page_config(
-    page_title=PAGE_TITLE,
-    layout="wide"
-)
-
 st.title(PAGE_TITLE)
 st.write(
     "Carica un file Excel con i dati dei partecipanti per "
