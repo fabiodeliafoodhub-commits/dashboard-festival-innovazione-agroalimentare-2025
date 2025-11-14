@@ -5,7 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from collections import Counter
 from fpdf import FPDF
-from PIL import Image  # <--- IMPORT PER IL LOGO
+from PIL import Image  # necessario per il logo
+
+# ----------------------------
+# Configurazione pagina
+# ----------------------------
 
 PAGE_TITLE = (
     "Dashboard personale - Partecipanti alla mia sessione "
@@ -17,12 +21,15 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------- BANNER CON LOGO E TITOLO ----------
+# ----------------------------
+# BANNER CON LOGO E TITOLO FOOD HUB
+# ----------------------------
+
 col_logo, col_title = st.columns([1, 5])
 
 with col_logo:
     st.image(
-        "assets/logo_foodhub.png",   # <--- esattamente così
+        "assets/logo_foodhub.png",   # percorso corretto
         width=120
     )
 
@@ -39,7 +46,7 @@ with col_title:
         unsafe_allow_html=True
     )
 
-st.write("")  # piccolo spazio
+st.write("")   # piccolo spazio tra banner e contenuto
 
 # ----------------------------
 # Impostazioni analisi
