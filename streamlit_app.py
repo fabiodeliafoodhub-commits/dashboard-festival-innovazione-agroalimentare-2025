@@ -194,22 +194,14 @@ if uploaded_file is not None:
             )
 
         # ----------------------------
-        # Tabella completa (subito visibile, nessun filtro attivo)
+        # Tabella finale con filtri opzionali (una sola tabella)
         # ----------------------------
-        st.subheader("Tabella completa dei partecipanti (tutte le righe)")
-        st.dataframe(
-            df_uploaded,
-            use_container_width=True,
-        )
+        st.subheader("Tabella completa dei partecipanti")
 
-        # ----------------------------
-        # Filtri solo su alcune colonne chiave
-        # ----------------------------
-        st.subheader("Filtra la tabella per alcune colonne chiave")
-
+        # Di base: nessun filtro → tutte le righe
         df_filtered = df_uploaded.copy()
 
-        with st.expander("Imposta filtri (opzionali)"):
+        with st.expander("Aggiungi filtri opzionali"):
             for col in FILTER_COLUMNS:
                 if col not in df_uploaded.columns:
                     continue
@@ -221,21 +213,41 @@ if uploaded_file is not None:
                 if not unique_vals:
                     continue
 
-                # Di default seleziono TUTTI i valori → nessun filtro attivo inizialmente
-                selected_vals = st.multiselect(
-                    f"Valori per '{col}'",
-                    options=unique_vals,
-                    default=unique_vals,
+                # Checkbox per attivare il filtro
+                use_filter = st.checkbox(
+                    f"Attiva filtro per '{col}'",
+                    value=False,
                 )
 
-                # Applico il filtro solo se l'utente deseleziona qualcosa
-                if selected_vals and len(selected_vals) < len(unique_vals):
-                    df_filtered = df_filtered[
-                        df_filtered[col].astype(str).isin(selected_vals)
-                    ]
+                if use_filter:
+                    selected_vals = st.multiselect(
+                        f"Seleziona i valori da mantenere per '{col}'",
+                        options=unique_vals,
+                        default=unique_vals,
+                    )
+
+                    # Applico il filtro solo se l'utente ha effettivamente scelto qualcosa
+                    if selected_vals and len(selected_vals) < len(unique_vals):
+                        df_filtered = df_filtered[
+                            df_filtered[col].astype(str).isin(selected_vals)
+                        ]
+
+        # Nascondi automaticamente le colonne di FILTER_COLUMNS che,
+        # dopo l'applicazione dei filtri, sono completamente vuote (tutti NaN/None)
+        cols_to_hide = []
+        for col in FILTER_COLUMNS:
+            if col in df_filtered.columns:
+                # Se tutti i valori sono NaN/None → da nascondere
+                if df_filtered[col].notna().sum() == 0:
+                    cols_to_hide.append(col)
+
+        if cols_to_hide:
+            df_to_show = df_filtered.drop(columns=cols_to_hide)
+        else:
+            df_to_show = df_filtered
 
         st.dataframe(
-            df_filtered,
+            df_to_show,
             use_container_width=True,
         )
 
