@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from wordcloud import WordCloud
+from collections import Counter
 from fpdf import FPDF
 
 # ----------------------------
@@ -22,7 +22,7 @@ st.set_page_config(
 st.title(PAGE_TITLE)
 st.write(
     "Carica un file Excel con i dati dei partecipanti per "
-    "visualizzare grafici, analisi del ruolo e una tabella filtrabile."
+    "visualizzare KPI, grafici, analisi dei ruoli e una tabella filtrabile."
 )
 
 # ----------------------------
@@ -93,6 +93,42 @@ def find_column_case_insensitive(df: pd.DataFrame, target_name: str):
     return None
 
 
+def normalize_role(role: str) -> str:
+    """
+    Normalizza job title simili in etichette più aggregate.
+    Esempi:
+    - R&D, ricerca, research -> 'Ricerca e Sviluppo (R&D)'
+    - quality, qualità -> 'Qualità / Quality Assurance'
+    - marketing -> 'Marketing'
+    - innovation / innovazione -> 'Innovazione'
+    ecc.
+    """
+    r = role.strip().lower()
+
+    # pattern di normalizzazione (molto semplice ma efficace)
+    if any(k in r for k in ["r&d", "ricerca", "research", "sviluppo prodotto", "product development"]):
+        return "Ricerca e Sviluppo (R&D)"
+    if any(k in r for k in ["quality", "qualità", "controllo qualità", "qa"]):
+        return "Qualità / Quality Assurance"
+    if "marketing" in r:
+        return "Marketing"
+    if any(k in r for k in ["innovation", "innovazione"]):
+        return "Innovazione"
+    if any(k in r for k in ["sales", "commerciale", "vendite", "account manager"]):
+        return "Sales / Commerciale"
+    if any(k in r for k in ["supply chain", "logistica"]):
+        return "Supply Chain / Logistica"
+    if any(k in r for k in ["direttore", "director", "ceo", "cfo", "cto", "chief"]):
+        return "Top Management"
+    if any(k in r for k in ["regolatorio", "regulatory", "affari regolatori"]):
+        return "Affari Regolatori"
+    if any(k in r for k in ["ricercatore", "professore", "phd", "ricerca accademica"]):
+        return "Ricerca Accademica"
+
+    # fallback: capitalizza in modo decente
+    return r.title()
+
+
 def generate_pdf_report(df: pd.DataFrame,
                         kpis: dict,
                         top_roles: list | None = None,
@@ -101,8 +137,8 @@ def generate_pdf_report(df: pd.DataFrame,
     Crea un PDF semplice con:
     - titolo
     - KPI principali
-    - top ruoli
-    - top settori
+    - top ruoli normalizzati (escludendo 'Studio')
+    - top settori produttivi
     Restituisce i bytes del PDF.
     """
     pdf = FPDF()
@@ -125,11 +161,11 @@ def generate_pdf_report(df: pd.DataFrame,
     if top_roles:
         pdf.ln(5)
         pdf.set_font("Arial", "B", 13)
-        pdf.cell(0, 8, "Top ruoli dichiarati", ln=True)
+        pdf.cell(0, 8, "Top ruoli (aggregati, esclusi studenti)", ln=True)
         pdf.set_font("Arial", "", 11)
         for role, count in top_roles:
             line = f"- {role}: {count} partecipanti"
-            pdf.cell(0, 7, line[:120], ln=True)  # taglio per sicurezza
+            pdf.cell(0, 7, line[:120], ln=True)
 
     # Top settori
     if top_sectors:
@@ -141,7 +177,6 @@ def generate_pdf_report(df: pd.DataFrame,
             line = f"- {sector}: {count} partecipanti"
             pdf.cell(0, 7, line[:120], ln=True)
 
-    # Ritorna bytes
     pdf_bytes = pdf.output(dest="S").encode("latin-1", "ignore")
     return pdf_bytes
 
@@ -189,12 +224,11 @@ if uploaded_file is not None:
 
         ruolo_col = find_column_case_insensitive(df_uploaded, "ruolo")
         num_unique_roles = None
-        roles_series = None
         if ruolo_col is not None:
-            roles_series = df_uploaded[ruolo_col].dropna().astype(str)
-            num_unique_roles = int(roles_series.nunique()) if not roles_series.empty else 0
+            # ruoli totali (anche studenti) solo per KPI numerico
+            roles_series_all = df_uploaded[ruolo_col].dropna().astype(str)
+            num_unique_roles = int(roles_series_all.nunique()) if not roles_series_all.empty else 0
 
-        # KPI per la UI
         st.subheader("Panoramica partecipanti")
 
         kpi_row1 = st.columns(3)
@@ -211,7 +245,6 @@ if uploaded_file is not None:
         if num_unique_roles is not None:
             kpi_row2[1].metric("Ruoli diversi dichiarati", num_unique_roles)
 
-        # Dizionario KPI per il PDF
         kpis_for_pdf = {
             "Totale partecipanti": total_participants,
             "Organizzazioni uniche": unique_orgs if unique_orgs is not None else "n.d.",
@@ -249,7 +282,6 @@ if uploaded_file is not None:
                 continue
 
             value_counts = value_counts.sort_values(ascending=False)
-
             total = value_counts.sum()
             percentages = (value_counts / total * 100).round(1)
 
@@ -305,9 +337,9 @@ if uploaded_file is not None:
             )
 
         # ----------------------------
-        # Analisi testuale del campo "ruolo"
+        # Analisi dei ruoli (escludendo occupazione = Studio)
         # ----------------------------
-        st.subheader("Analisi dei ruoli dichiarati")
+        st.subheader("Analisi dei ruoli dichiarati (escludendo studenti)")
 
         top_roles_for_pdf = None
         if ruolo_col is None:
@@ -315,73 +347,70 @@ if uploaded_file is not None:
                 "Nessuna colonna 'ruolo' trovata nel file (ricerca case-insensitive)."
             )
         else:
-            roles_series = df_uploaded[ruolo_col].dropna().astype(str)
-            if roles_series.empty:
-                st.info("La colonna 'ruolo' è presente ma non contiene dati.")
+            if "Occupazione" not in df_uploaded.columns:
+                st.info(
+                    "Non è possibile escludere gli studenti perché manca la colonna 'Occupazione'."
+                )
+                roles_for_analysis = df_uploaded[ruolo_col].dropna().astype(str)
             else:
-                counts_roles = roles_series.value_counts()
-                top_roles = counts_roles.head(15)
-                top_roles_for_pdf = list(zip(top_roles.index.tolist(),
-                                             top_roles.values.tolist()))
-
-                st.markdown("**Top 15 ruoli (come dichiarati dai partecipanti)**")
-                st.dataframe(
-                    top_roles.rename("Numero partecipanti").to_frame(),
-                    use_container_width=True,
+                mask_not_studio = (
+                    df_uploaded["Occupazione"]
+                    .astype(str)
+                    .str.lower()
+                    .str.strip()
+                    != "studio"
+                )
+                roles_for_analysis = (
+                    df_uploaded.loc[mask_not_studio, ruolo_col]
+                    .dropna()
+                    .astype(str)
                 )
 
-# ----------------------------
-# WORDCLOUD ESCLUDENDO OCCUPAZIONE = "STUDIO"
-# ----------------------------
-from collections import Counter
-import numpy as np
+            if roles_for_analysis.empty:
+                st.info(
+                    "Non ci sono ruoli disponibili (dopo aver escluso eventuali 'Studio')."
+                )
+            else:
+                # Normalizza ruoli simili
+                normalized_roles = [normalize_role(r) for r in roles_for_analysis]
+                role_counts = Counter(normalized_roles)
+                top_roles = role_counts.most_common(15)
+                top_roles_for_pdf = top_roles.copy()
 
-# Trova la colonna ruolo (case-insensitive)
-ruolo_col = find_column_case_insensitive(df_uploaded, "ruolo")
+                st.markdown("**Top 15 ruoli aggregati (esclusi studenti)**")
+                df_top_roles = pd.DataFrame(
+                    top_roles, columns=["Ruolo aggregato", "Numero partecipanti"]
+                )
+                st.dataframe(df_top_roles, use_container_width=True)
 
-if ruolo_col is not None and "Occupazione" in df_uploaded.columns:
-    
-    # Filtra solo righe dove Occupazione != Studio
-    mask = df_uploaded["Occupazione"].astype(str).str.lower().str.strip() != "studio"
-    df_roles_filtered = df_uploaded[mask]
+                # Wordcloud-like: posiziono i ruoli normalizzati con grandezza proporzionale
+                st.markdown("**Mappa visiva dei ruoli (dimensione ∝ frequenza)**")
+                fig_wc, ax_wc = plt.subplots(figsize=(10, 6))
+                ax_wc.set_title(
+                    "Ruoli dichiarati (aggregati, esclusi studenti)",
+                    fontsize=14
+                )
 
-    roles_series = df_roles_filtered[ruolo_col].dropna().astype(str)
+                max_count = max(role_counts.values())
+                for role, count in role_counts.most_common(30):
+                    x, y = np.random.rand(), np.random.rand()
+                    fontsize = 8 + (count / max_count) * 20
+                    ax_wc.text(
+                        x,
+                        y,
+                        role,
+                        fontsize=fontsize,
+                        alpha=0.7,
+                        color="#73b27d",
+                        transform=ax_wc.transAxes,
+                    )
 
-    if not roles_series.empty:
-        roles_list = roles_series.tolist()
-
-        # Conteggio parole (escludiamo parole troppo brevi o generiche)
-        word_counts = Counter(" ".join(roles_list).lower().split())
-
-        # Top 50 parole
-        top_words = dict(word_counts.most_common(50))
-
-        # Generazione wordcloud "matplotlib-only"
-        fig_wc, ax_wc = plt.subplots(figsize=(10, 6))
-        ax_wc.set_title("Wordcloud dei ruoli (escludendo studenti)", fontsize=14)
-
-        for word, count in top_words.items():
-            x, y = np.random.rand(), np.random.rand()
-            ax_wc.text(
-                x,
-                y,
-                word,
-                fontsize=10 + count * 0.4,
-                alpha=0.6,
-                color="#73b27d",
-                transform=ax_wc.transAxes,
-            )
-
-        ax_wc.axis("off")
-        st.pyplot(fig_wc)
-        plt.close(fig_wc)
-
-else:
-    st.info("Non è possibile generare la wordcloud: mancano le colonne 'ruolo' o 'Occupazione'.")
-
+                ax_wc.axis("off")
+                st.pyplot(fig_wc)
+                plt.close(fig_wc)
 
         # ----------------------------
-        # Tabella finale con filtri opzionali (una sola tabella)
+        # Tabella completa con filtri opzionali (una sola tabella)
         # ----------------------------
         st.subheader("Tabella completa dei partecipanti")
 
@@ -416,7 +445,7 @@ else:
                             df_filtered[col].astype(str).isin(selected_vals)
                         ]
 
-        # Nascondi colonne completamente "vuote"
+        # Nascondi automaticamente le colonne completamente vuote
         cols_to_hide = []
         for col in df_filtered.columns:
             col_series = df_filtered[col]
@@ -447,7 +476,6 @@ else:
         # ----------------------------
         st.subheader("Scarica il report in PDF")
 
-        # Top settori per PDF (se disponibili)
         top_sectors_for_pdf = None
         if sectors_present:
             counts_sectors = df_uploaded[sectors_col].value_counts(dropna=True)
