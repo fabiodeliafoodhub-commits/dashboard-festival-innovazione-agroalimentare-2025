@@ -330,21 +330,55 @@ if uploaded_file is not None:
                     use_container_width=True,
                 )
 
-                # Word cloud
-                text_all_roles = " ".join(roles_series.tolist())
-                if text_all_roles.strip():
-                    wc = WordCloud(
-                        width=800,
-                        height=400,
-                        background_color="white",
-                        colormap="Greens"
-                    ).generate(text_all_roles)
+# ----------------------------
+# WORDCLOUD ESCLUDENDO OCCUPAZIONE = "STUDIO"
+# ----------------------------
+from collections import Counter
+import numpy as np
 
-                    fig_wc, ax_wc = plt.subplots(figsize=(10, 5))
-                    ax_wc.imshow(wc)
-                    ax_wc.axis("off")
-                    st.pyplot(fig_wc)
-                    plt.close(fig_wc)
+# Trova la colonna ruolo (case-insensitive)
+ruolo_col = find_column_case_insensitive(df_uploaded, "ruolo")
+
+if ruolo_col is not None and "Occupazione" in df_uploaded.columns:
+    
+    # Filtra solo righe dove Occupazione != Studio
+    mask = df_uploaded["Occupazione"].astype(str).str.lower().str.strip() != "studio"
+    df_roles_filtered = df_uploaded[mask]
+
+    roles_series = df_roles_filtered[ruolo_col].dropna().astype(str)
+
+    if not roles_series.empty:
+        roles_list = roles_series.tolist()
+
+        # Conteggio parole (escludiamo parole troppo brevi o generiche)
+        word_counts = Counter(" ".join(roles_list).lower().split())
+
+        # Top 50 parole
+        top_words = dict(word_counts.most_common(50))
+
+        # Generazione wordcloud "matplotlib-only"
+        fig_wc, ax_wc = plt.subplots(figsize=(10, 6))
+        ax_wc.set_title("Wordcloud dei ruoli (escludendo studenti)", fontsize=14)
+
+        for word, count in top_words.items():
+            x, y = np.random.rand(), np.random.rand()
+            ax_wc.text(
+                x,
+                y,
+                word,
+                fontsize=10 + count * 0.4,
+                alpha=0.6,
+                color="#73b27d",
+                transform=ax_wc.transAxes,
+            )
+
+        ax_wc.axis("off")
+        st.pyplot(fig_wc)
+        plt.close(fig_wc)
+
+else:
+    st.info("Non è possibile generare la wordcloud: mancano le colonne 'ruolo' o 'Occupazione'.")
+
 
         # ----------------------------
         # Tabella finale con filtri opzionali (una sola tabella)
