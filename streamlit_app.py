@@ -383,32 +383,6 @@ if uploaded_file is not None:
                 )
                 st.dataframe(df_top_roles, use_container_width=True)
 
-                # Wordcloud-like: posiziono i ruoli normalizzati con grandezza proporzionale
-                st.markdown("**Mappa visiva dei ruoli (dimensione ∝ frequenza)**")
-                fig_wc, ax_wc = plt.subplots(figsize=(10, 6))
-                ax_wc.set_title(
-                    "Ruoli dichiarati (aggregati, esclusi studenti)",
-                    fontsize=14
-                )
-
-                max_count = max(role_counts.values())
-                for role, count in role_counts.most_common(30):
-                    x, y = np.random.rand(), np.random.rand()
-                    fontsize = 8 + (count / max_count) * 20
-                    ax_wc.text(
-                        x,
-                        y,
-                        role,
-                        fontsize=fontsize,
-                        alpha=0.7,
-                        color="#73b27d",
-                        transform=ax_wc.transAxes,
-                    )
-
-                ax_wc.axis("off")
-                st.pyplot(fig_wc)
-                plt.close(fig_wc)
-
         # ----------------------------
         # Tabella completa con filtri opzionali (una sola tabella)
         # ----------------------------
