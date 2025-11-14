@@ -73,13 +73,15 @@ def get_colors_for_bars(num_bars: int, chart_index: int, values=None):
     base_rgba = mcolors.to_rgba(base_hex)
 
     # Calcolo alpha in base ai valori (più grande = meno trasparente)
+    import numpy as np
+
     if values is None or len(values) != num_bars:
         alphas = [1.0 for _ in range(num_bars)]
     else:
         vals = pd.Series(values, dtype=float)
         v_min = vals.min()
         v_max = vals.max()
-        if v_max == v_min:
+        if v_max == v_min or np.isnan(v_max):
             alphas = [1.0 for _ in range(num_bars)]
         else:
             norm = (vals - v_min) / (v_max - v_min)
@@ -232,15 +234,16 @@ if uploaded_file is not None:
                             df_filtered[col].astype(str).isin(selected_vals)
                         ]
 
-        # Nascondi automaticamente le colonne di FILTER_COLUMNS che,
-        # dopo l'applicazione dei filtri, sono completamente "vuote"
-        # (NaN, None, stringhe vuote, spazi, "None", "nan", ecc.)
+        # ----------------------------
+        # Nascondi automaticamente le colonne completamente vuote
+        # (NaN, None, stringhe vuote, "None", "nan", spazi, ecc.)
+        # ----------------------------
         cols_to_hide = []
-        for col in FILTER_COLUMNS:
-            if col in df_filtered.columns:
-                col_series = df_filtered[col]
+        for col in df_filtered.columns:
+            col_series = df_filtered[col]
 
-                # Normalizzo i valori "finti vuoti" in NaN
+            # Normalizzo i "finti vuoti" in NA solo per colonne oggetto/testo
+            if col_series.dtype == "object":
                 col_norm = (
                     col_series
                     .replace(
@@ -256,16 +259,16 @@ if uploaded_file is not None:
                         pd.NA,
                     )
                 )
+            else:
+                col_norm = col_series
 
-                # Se TUTTI i valori sono NaN dopo la normalizzazione → colonna da nascondere
-                if col_norm.isna().all():
-                    cols_to_hide.append(col)
+            if col_norm.isna().all():
+                cols_to_hide.append(col)
 
         if cols_to_hide:
             df_to_show = df_filtered.drop(columns=cols_to_hide)
         else:
             df_to_show = df_filtered
-
 
         st.dataframe(
             df_to_show,
