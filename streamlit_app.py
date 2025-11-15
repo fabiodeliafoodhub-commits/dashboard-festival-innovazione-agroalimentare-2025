@@ -533,7 +533,7 @@ if uploaded_file is not None:
                 unsafe_allow_html=True
             )
 
-            st.subheader("Panoramica partecipanti")
+            st.subheader("Introduzione")
             st.markdown(
     """
     <div style="
@@ -558,7 +558,8 @@ if uploaded_file is not None:
     """,
     unsafe_allow_html=True
 )
-
+            st.subheader("Panoramica partecipanti")
+            
             # KPI riga 1
             kpi_row1 = st.columns(3)
             kpi_row1[0].metric("Totale partecipanti", total_participants)
