@@ -534,6 +534,30 @@ if uploaded_file is not None:
             )
 
             st.subheader("Panoramica partecipanti")
+            st.markdown(
+    """
+    <div style="
+        background-color:#ffffff;
+        padding:16px 20px;
+        border-radius:12px;
+        box-shadow:0 4px 12px rgba(15,23,42,0.05);
+        border-left:6px solid #73b27d;
+        margin-bottom:20px;
+    ">
+        <p style="font-size:15px; color:#333; line-height:1.5; margin:0;">
+            Questa dashboard offre una sintesi professionale dei partecipanti alla tua sessione,
+            con l’obiettivo di evidenziare la composizione del pubblico e il suo potenziale strategico.
+            È possibile esplorare sia le distribuzioni generali (occupazione, seniority, settore,
+            tipo di organizzazione) sia analisi più mirate come la presenza di profili con 
+            oltre 10 anni di esperienza o i ruoli maggiormente rappresentati. <br><br>
+            La tabella finale consente un’analisi completa e filtrabile di ogni singolo partecipante,
+            mentre i grafici e l’executive summary supportano una lettura immediata, utile per 
+            stakeholder, sponsor e partner interessati a comprendere il valore dell’audience raggiunta.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
             # KPI riga 1
             kpi_row1 = st.columns(3)
