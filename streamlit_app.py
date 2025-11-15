@@ -87,9 +87,10 @@ st.set_page_config(
 col_logo, col_title = st.columns([1, 5])
 
 with col_logo:
+    st.write("")  # un filo di spazio sopra
     st.image(
         "assets/logo_foodhub.png",
-        width=100
+        width=90
     )
 
 with col_title:
@@ -577,7 +578,7 @@ if uploaded_file is not None:
         # TAB 3: RUOLI
         # ----------------------------
         with tab_ruoli:
-            st.subheader("Analisi dei ruoli dichiarati (escludendo studenti)")
+            st.subheader("Analisi dei ruoli professionali dichiarati")
 
             if ruolo_col is None:
                 st.info(
