@@ -325,8 +325,19 @@ def plot_category_distribution(df, category, idx):
         )
 
 
-def build_executive_summary(df, kpis_for_pdf, roles_for_analysis_norm, sectors_col, occup_col, org_type_col, seniority_col):
-    """Genera un riassunto testuale 'executive summary' basato sui dati."""
+def build_executive_summary(
+    df,
+    kpis_for_pdf,
+    roles_for_analysis_norm,
+    sectors_col,
+    occup_col,
+    org_type_col,
+    seniority_col,
+    perc_over_10=None,
+):
+    """Genera un riassunto testuale 'executive summary' basato sui dati,
+    focalizzato su profili professionali di medio-alto livello.
+    """
     total = len(df)
     if total == 0:
         return "Non ci sono partecipanti registrati per questa sessione."
@@ -360,30 +371,33 @@ def build_executive_summary(df, kpis_for_pdf, roles_for_analysis_norm, sectors_c
                 f"che pesa per circa il **{pct_sec:.1f}%** del totale."
             )
 
-    # Seniority
-    if seniority_col in df.columns:
-        vc_sen = df[seniority_col].value_counts(dropna=True)
-        if not vc_sen.empty:
-            top_sen = vc_sen.index[0]
-            pct_sen = vc_sen.iloc[0] / total * 100
-            lines.append(
-                f"La **seniority più diffusa** è **{top_sen}** "
-                f"({pct_sen:.1f}% dei partecipanti)."
-            )
+    # Seniority: mettiamo in luce i profili con >10 anni
+    # Se non ci hanno passato perc_over_10, lo ricalcoliamo qui
+    if perc_over_10 is None and seniority_col in df.columns:
+        seniority_series = (
+            df[seniority_col]
+            .dropna()
+            .astype(str)
+            .str.strip()
+        )
+        if seniority_series.shape[0] > 0:
+            senior_mask = seniority_series.isin(["11-20", ">20"])
+            perc_over_10 = (senior_mask.sum() / seniority_series.shape[0]) * 100
 
-    # Studenti vs professionisti
-    if occup_col in df.columns:
-        vc_occ = df[occup_col].astype(str).str.lower().value_counts(dropna=True)
-        num_studio = vc_occ.get("studio", 0)
-        pct_studio = num_studio / total * 100
-        if num_studio > 0:
+    if perc_over_10 is not None:
+        if perc_over_10 >= 40:
             lines.append(
-                f"Gli studenti (categoria 'Studio') rappresentano circa **{pct_studio:.1f}%** del pubblico."
+                f"Il pubblico è fortemente **senior**, con circa il **{perc_over_10:.1f}%** "
+                "dei partecipanti con oltre 10 anni di esperienza."
             )
-        else:
+        elif perc_over_10 >= 20:
             lines.append(
-                "Non risultano partecipanti classificati nella categoria **'Studio'**, "
-                "il pubblico è quindi fortemente professionale."
+                f"È presente una componente rilevante di profili **mid-senior**, "
+                f"con circa il **{perc_over_10:.1f}%** dei partecipanti oltre i 10 anni di esperienza."
+            )
+        elif perc_over_10 > 0:
+            lines.append(
+                f"La quota di profili con oltre 10 anni di esperienza è pari a circa **{perc_over_10:.1f}%**."
             )
 
     # Ruoli aggregati (R&D, Qualità, ecc.)
@@ -392,10 +406,11 @@ def build_executive_summary(df, kpis_for_pdf, roles_for_analysis_norm, sectors_c
         top_role, top_role_count = role_counts.most_common(1)[0]
         pct_top_role = top_role_count / total * 100
         lines.append(
-            f"A livello di profili professionali, il ruolo aggregato più frequente è "
+            f"A livello di profili professionali, il ruolo aggregato più rappresentato è "
             f"**{top_role}** (circa {pct_top_role:.1f}% dei partecipanti)."
         )
 
+    # Nota: volutamente NON parliamo di studenti o profili poco strategici
     return "\n\n".join(lines)
 
 
@@ -546,17 +561,35 @@ if uploaded_file is not None:
             if seniority_series.shape[0] > 0:
                 perc_over_10 = (senior_mask.sum() / seniority_series.shape[0]) * 100
         
-        kpi_row2 = st.columns(2)
-        
-        if perc_over_10 is not None:
-            kpi_row2[0].metric(
-                "Senior (>10 anni di esperienza)",
-                f"{perc_over_10:.1f}%",
-                help="Percentuale dei partecipanti con più di 10 anni di esperienza professionale"
-            )
-        
-        if num_unique_roles is not None:
-            kpi_row2[1].metric("Ruoli diversi dichiarati", num_unique_roles)
+            # --- KPI Seniority: percentuale con più di 10 anni di esperienza ---
+            seniority_col = "Seniority"
+            
+            perc_over_10 = None
+            if seniority_col in df_uploaded.columns:
+                seniority_series = (
+                    df_uploaded[seniority_col]
+                    .dropna()
+                    .astype(str)
+                    .str.strip()
+                )
+            
+                # Consideriamo senior SOLO le categorie: "11-20" e ">20"
+                senior_mask = seniority_series.isin(["11-20", ">20"])
+            
+                if seniority_series.shape[0] > 0:
+                    perc_over_10 = (senior_mask.sum() / seniority_series.shape[0]) * 100
+            
+            kpi_row2 = st.columns(2)
+            
+            if perc_over_10 is not None:
+                kpi_row2[0].metric(
+                    "Senior (>10 anni di esperienza)",
+                    f"{perc_over_10:.1f}%",
+                    help="Percentuale dei partecipanti con più di 10 anni di esperienza (categorie 11-20 e >20)"
+                )
+            
+            if num_unique_roles is not None:
+                kpi_row2[1].metric("Ruoli diversi dichiarati", num_unique_roles)
 
 
             summary_text = build_executive_summary(
@@ -567,7 +600,9 @@ if uploaded_file is not None:
                 occup_col,
                 org_type_col,
                 seniority_col,
+                perc_over_10=perc_over_10,
             )
+            
             st.markdown(summary_text)
 
             st.markdown("---")
