@@ -607,9 +607,6 @@ if uploaded_file is not None:
             st.markdown(summary_text)
 
             st.markdown("---")
-            st.subheader("Distribuzioni chiave")
-
-
 
         # ----------------------------
         # TAB 2: GRAFICI (tutti)
