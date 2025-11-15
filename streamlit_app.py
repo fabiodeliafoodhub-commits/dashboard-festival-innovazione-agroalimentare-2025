@@ -503,38 +503,39 @@ if uploaded_file is not None:
                 role_counts = Counter(roles_for_analysis_norm)
                 top_roles_for_pdf = role_counts.most_common(15)
 
-        # ----------------------------
+            # ----------------------------
         # TABS
         # ----------------------------
-        tab_overview, tab_grafici, tab_ruoli, tab_tabella, tab_report = st.tabs(
-            ["Overview", "Grafici", "Ruoli", "Tabella dettagliata", "Report"]
+        tab_overview, tab_grafici, tab_ruoli, tab_tabella = st.tabs(
+            ["Overview", "Grafici", "Ruoli", "Tabella dettagliata"]
         )
 
         # ----------------------------
         # TAB 1: OVERVIEW
         # ----------------------------
         with tab_overview:
+            # Pill introduttiva
             st.markdown(
-        """
-            <div style="
-                display:inline-block;
-                padding:4px 10px;
-                border-radius:999px;
-                background-color:#e3f2eb;
-                color:#14532d;
-                font-size:12px;
-                font-weight:600;
-                margin-bottom:8px;
-            ">
-                Festival dell’Innovazione Agroalimentare · Audience Insights
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+                """
+                <div style="
+                    display:inline-block;
+                    padding:4px 10px;
+                    border-radius:999px;
+                    background-color:#e3f2eb;
+                    color:#14532d;
+                    font-size:12px;
+                    font-weight:600;
+                    margin-bottom:8px;
+                ">
+                    Festival dell’Innovazione Agroalimentare · Audience Insights
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-        with tab_overview:
             st.subheader("Panoramica partecipanti")
 
+            # KPI riga 1
             kpi_row1 = st.columns(3)
             kpi_row1[0].metric("Totale partecipanti", total_participants)
             if unique_orgs is not None:
@@ -542,28 +543,8 @@ if uploaded_file is not None:
             if unique_sectors is not None:
                 kpi_row1[2].metric("Settori produttivi unici", unique_sectors)
 
-        # --- KPI Seniority: percentuale >10 anni ---
-        seniority_col = "Seniority"
-        
-        perc_over_10 = None
-        if seniority_col in df_uploaded.columns:
-            seniority_series = df_uploaded[seniority_col].dropna().astype(str)
-        
-            # Vengono considerati "senior" tutti quelli che contengono "10" o valori superiori
-            # Esempi che vengono catturati:
-            # - "10-15"
-            # - "15+"
-            # - "20+"
-            senior_mask = seniority_series.str.contains("10", regex=False) | \
-                          seniority_series.str.contains("15", regex=False) | \
-                          seniority_series.str.contains("20", regex=False)
-        
-            if seniority_series.shape[0] > 0:
-                perc_over_10 = (senior_mask.sum() / seniority_series.shape[0]) * 100
-        
-            # --- KPI Seniority: percentuale con più di 10 anni di esperienza ---
+            # --- KPI Seniority: percentuale con più di 10 anni (11-20 e >20) ---
             seniority_col = "Seniority"
-            
             perc_over_10 = None
             if seniority_col in df_uploaded.columns:
                 seniority_series = (
@@ -572,26 +553,22 @@ if uploaded_file is not None:
                     .astype(str)
                     .str.strip()
                 )
-            
-                # Consideriamo senior SOLO le categorie: "11-20" e ">20"
-                senior_mask = seniority_series.isin(["11-20", ">20"])
-            
                 if seniority_series.shape[0] > 0:
+                    senior_mask = seniority_series.isin(["11-20", ">20"])
                     perc_over_10 = (senior_mask.sum() / seniority_series.shape[0]) * 100
-            
+
+            # KPI riga 2
             kpi_row2 = st.columns(2)
-            
             if perc_over_10 is not None:
                 kpi_row2[0].metric(
                     "Senior (>10 anni di esperienza)",
                     f"{perc_over_10:.1f}%",
                     help="Percentuale dei partecipanti con più di 10 anni di esperienza (categorie 11-20 e >20)"
                 )
-            
             if num_unique_roles is not None:
                 kpi_row2[1].metric("Ruoli diversi dichiarati", num_unique_roles)
 
-
+            # Executive summary
             summary_text = build_executive_summary(
                 df_uploaded,
                 kpis_for_pdf,
@@ -602,7 +579,6 @@ if uploaded_file is not None:
                 seniority_col,
                 perc_over_10=perc_over_10,
             )
-            
             st.markdown(summary_text)
 
             st.markdown("---")
@@ -759,40 +735,3 @@ if uploaded_file is not None:
                 file_name="partecipanti_filtrati.csv",
                 mime="text/csv",
             )
-
-        # ----------------------------
-        # TAB 5: REPORT (PDF)
-        # ----------------------------
-        with tab_report:
-            st.subheader("Report in PDF")
-
-            top_sectors_for_pdf = None
-            if sectors_present:
-                counts_sectors = df_uploaded[sectors_col].value_counts(dropna=True)
-                if not counts_sectors.empty:
-                    top5_sectors = counts_sectors.head(10)
-                    top_sectors_for_pdf = list(
-                        zip(top5_sectors.index.tolist(), top5_sectors.values.tolist())
-                    )
-
-            pdf_bytes = generate_pdf_report(
-                df_uploaded,
-                kpis=kpis_for_pdf,
-                top_roles=top_roles_for_pdf,
-                top_sectors=top_sectors_for_pdf,
-            )
-
-            st.download_button(
-                label="Scarica report PDF della sessione",
-                data=pdf_bytes,
-                file_name="report_partecipanti_sessione.pdf",
-                mime="application/pdf",
-            )
-
-    except Exception as e:
-        st.error(
-            f"Errore nella lettura del file: {e}. "
-            "Assicurati che sia un file Excel valido."
-        )
-else:
-    st.info("Carica un file Excel per procedere con l'analisi.")
