@@ -87,7 +87,7 @@ st.set_page_config(
 col_logo, col_title = st.columns([1, 5])
 
 with col_logo:
-    st.write("")  # un filo di spazio sopra
+    st.write("5")  # un filo di spazio sopra
     st.image(
         "assets/logo_foodhub.png",
         width=90
