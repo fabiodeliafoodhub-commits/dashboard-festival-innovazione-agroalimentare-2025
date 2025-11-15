@@ -71,7 +71,7 @@ st.markdown(
 # ----------------------------
 
 PAGE_TITLE = (
-    "Dashboard personale - Partecipanti alla mia sessione "
+    "Dashboard partecipanti alla mia sessione "
     "del Festival dell'Innovazione Agroalimentare"
 )
 
@@ -89,7 +89,7 @@ col_logo, col_title = st.columns([1, 5])
 with col_logo:
     st.image(
         "assets/logo_foodhub.png",
-        width=120
+        width=100
     )
 
 with col_title:
@@ -572,15 +572,6 @@ if uploaded_file is not None:
             for idx, category in enumerate(CATEGORIES_WITH_CHARTS):
                 st.markdown(f"### {category}")
                 plot_category_distribution(df_uploaded, category, idx)
-
-            if ORGANIZATION_COLUMN in df_uploaded.columns:
-                st.info(
-                    "La colonna "
-                    f"'{ORGANIZATION_COLUMN}' "
-                    "non viene visualizzata come grafico perché contiene "
-                    "troppi valori diversi. "
-                    "Puoi comunque analizzarla nella tabella dettagliata."
-                )
 
         # ----------------------------
         # TAB 3: RUOLI
