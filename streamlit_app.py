@@ -290,6 +290,12 @@ def plot_category_distribution(df, category, idx):
 
     fig, ax = plt.subplots(figsize=(10, 6))
     bars = ax.bar(dist_df[category], dist_df["Numero"], color=colors)
+    # Rimuovi bordi inutili
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    
+    # Griglia leggera solo sull'asse Y
+    ax.grid(axis="y", linestyle="--", linewidth=0.5, alpha=0.4)
 
     ax.set_title(f"Distribuzione di {category}")
     ax.set_xlabel(category)
